@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() => runApp(MyApp());
 
@@ -45,7 +48,43 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   String dropdownValue = 'Add';
-  int result = 0;
+  int _result = 0;
+
+  int _first = 0;
+  int _second = 0;
+
+  String resultStr = "";
+
+  static const platform = const MethodChannel('in.androidgeek.afe/data');
+
+  _MyHomePageState() {
+    platform.setMethodCallHandler(_receiveFromHost);
+  }
+
+  Future<void> _receiveFromHost(MethodCall call) async {
+    int f = 0;
+    int s = 0;
+
+    try {
+      print(call.method);
+
+      if (call.method == "fromHostToClient") {
+        final String data = call.arguments;
+        print(call.arguments);
+        final jData = jsonDecode(data);
+
+        f = jData['first'];
+        s = jData['second'];
+      }
+    } on PlatformException catch (e) {
+      //platform may not able to send proper data.
+    }
+
+    setState(() {
+      _first = f;
+      _second = s;
+    });
+  }
 
   _addNumbers(int n1, int n2) {
     return n1 + n2;
@@ -58,11 +97,29 @@ class _MyHomePageState extends State<MyHomePage> {
   _setResults(int n1, int n2) {
     setState(() {
       if (dropdownValue == 'Add') {
-        result = _addNumbers(n1, n2);
+        _result = _addNumbers(n1, n2);
       } else {
-        result = _multiplyNumbers(n1, n2);
+        _result = _multiplyNumbers(n1, n2);
       }
     });
+  }
+
+  void _sendResultsToAndroidiOS() {
+    if (dropdownValue == 'Add') {
+      _result = _addNumbers(_first, _second);
+    } else {
+      _result = _multiplyNumbers(_first, _second);
+    }
+
+    Map<String, dynamic> resultMap = Map();
+    resultMap['operation'] = dropdownValue;
+    resultMap['result'] = _result;
+
+    setState(() {
+      resultStr = resultMap.toString();
+    });
+
+    platform.invokeMethod("FromClientToHost", resultMap.toString());
   }
 
   @override
@@ -107,7 +164,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         Text('First Number: ',
                             style:
                                 TextStyle(color: Colors.black, fontSize: 16)),
-                        Text('10',
+                        Text(_first.toString(),
                             style: TextStyle(color: Colors.blue, fontSize: 16)),
                       ])),
               Container(
@@ -118,7 +175,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         Text('Second Number: ',
                             style:
                                 TextStyle(color: Colors.black, fontSize: 16)),
-                        Text('20',
+                        Text(_second.toString(),
                             style: TextStyle(color: Colors.blue, fontSize: 16)),
                       ])),
               Container(
@@ -146,7 +203,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   )),
               RaisedButton(
                 onPressed: () {
-                  _setResults(10, 20);
                   _sendResultsToAndroidiOS();
                 },
                 textColor: Colors.white,
@@ -156,19 +212,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     padding: const EdgeInsets.all(10.0),
                     child: const Text('Send Results to Android/iOS module',
                         style: TextStyle(fontSize: 16))),
-              ),
-              Container(
-                  margin: EdgeInsets.all(10),
-                  child: Text(
-                    'Result: $result',
-                    style: TextStyle(color: Colors.blue, fontSize: 16),
-                  ))
+              )
             ],
           ),
         ));
-  }
-
-  void _sendResultsToAndroidiOS() {
-    //TODO send results to Android/iOS module
   }
 }
