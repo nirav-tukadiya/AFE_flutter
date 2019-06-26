@@ -119,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
       resultStr = resultMap.toString();
     });
 
-    platform.invokeMethod("FromClientToHost", resultMap.toString());
+    platform.invokeMethod("FromClientToHost", resultMap);
   }
 
   @override
